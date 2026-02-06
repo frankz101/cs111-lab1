@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,14 +10,14 @@ int main(int argc, char *argv[])
     // need at least one command
     if (argc < 2) {
         fprintf(stderr, "Usage: %s cmd1 [cmd2 ...]\n", argv[0]);
-        exit(1);
+        exit(EINVAL);
     }
 
     // single command, no pipes needed
     if (argc == 2) {
         execlp(argv[1], argv[1], NULL);
         perror("execlp");
-        exit(1);
+        exit(errno);
     }
 
     // multiple commands, need pipes
@@ -59,7 +60,7 @@ int main(int argc, char *argv[])
             // exec the command
             execlp(argv[i + 1], argv[i + 1], NULL);
             perror(argv[i + 1]);
-            exit(1);
+            exit(errno);
         }
 
         // parent process
@@ -75,9 +76,12 @@ int main(int argc, char *argv[])
             prev_fd = fd[0];
         }
 
-        // wait for this child
-        int status;
-        waitpid(child_pid, &status, 0);
+    }
+
+    // wait for all children after launching the full pipeline
+    int status;
+    for (int i = 0; i < num_cmds; i++) {
+        waitpid(-1, &status, 0);
         if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
             exit_status = WEXITSTATUS(status);
         }

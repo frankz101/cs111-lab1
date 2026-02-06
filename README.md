@@ -1,17 +1,24 @@
-## UID: 123456789
+## UID: 405990579
 
 ## Pipe Up
 
-One sentence description
+A simplified shell pipe operator that chains multiple commands together via Unix pipes.
 
 ## Building
 
-Explain briefly how to build your program
+```
+make
+```
 
 ## Running
 
-Show an example run of your program, using at least two additional arguments, and what to expect
+```
+./pipe ls cat wc
+
+```
 
 ## Cleaning up
 
-Explain briefly how to clean up all binary files
+```
+make clean
+```

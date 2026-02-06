@@ -13,14 +13,6 @@ int main(int argc, char *argv[])
         exit(EINVAL);
     }
 
-    // single command, no pipes needed
-    if (argc == 2) {
-        execlp(argv[1], argv[1], NULL);
-        perror("execlp");
-        exit(errno);
-    }
-
-    // multiple commands, need pipes
     int num_cmds = argc - 1;
     int fd[2];
     int prev_fd = -1;
@@ -31,14 +23,14 @@ int main(int argc, char *argv[])
         if (i < num_cmds - 1) {
             if (pipe(fd) == -1) {
                 perror("pipe");
-                exit(1);
+                exit(errno);
             }
         }
 
         pid_t child_pid = fork();
         if (child_pid == -1) {
             perror("fork");
-            exit(1);
+            exit(errno);
         }
 
         if (child_pid == 0) {
@@ -46,15 +38,30 @@ int main(int argc, char *argv[])
 
             // read from previous pipe if not first command
             if (prev_fd != -1) {
-                dup2(prev_fd, STDIN_FILENO);
-                close(prev_fd);
+                if (dup2(prev_fd, STDIN_FILENO) == -1) {
+                    perror("dup2");
+                    exit(errno);
+                }
+                if (close(prev_fd) == -1) {
+                    perror("close");
+                    exit(errno);
+                }
             }
 
             // write to current pipe if not last command
             if (i < num_cmds - 1) {
-                dup2(fd[1], STDOUT_FILENO);
-                close(fd[0]);
-                close(fd[1]);
+                if (dup2(fd[1], STDOUT_FILENO) == -1) {
+                    perror("dup2");
+                    exit(errno);
+                }
+                if (close(fd[0]) == -1) {
+                    perror("close");
+                    exit(errno);
+                }
+                if (close(fd[1]) == -1) {
+                    perror("close");
+                    exit(errno);
+                }
             }
 
             // exec the command
@@ -67,12 +74,18 @@ int main(int argc, char *argv[])
 
         // close prev_fd since child inherited it
         if (prev_fd != -1) {
-            close(prev_fd);
+            if (close(prev_fd) == -1) {
+                perror("close");
+                exit(errno);
+            }
         }
 
         // close write end, save read end for next iteration
         if (i < num_cmds - 1) {
-            close(fd[1]);
+            if (close(fd[1]) == -1) {
+                perror("close");
+                exit(errno);
+            }
             prev_fd = fd[0];
         }
 
